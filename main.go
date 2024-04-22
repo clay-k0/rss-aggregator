@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -20,17 +19,11 @@ type apiConfig struct {
 }
 
 func main() {
-	feed, err := urlToFeed("https://www.wagslane.dev/index.xml")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(feed)
-
 	godotenv.Load(".env")
 
 	portString := os.Getenv("PORT")
 	if portString == "" {
-		log.Fatal("Port not found in environment")
+		log.Fatal("port not found in environment")
 	}
 
 	dbURL := os.Getenv("DB_URL")
@@ -40,7 +33,7 @@ func main() {
 
 	conn, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal("Can't connect to database")
+		log.Fatal("can't connect to database")
 	}
 
 	db := database.New(conn)
@@ -63,12 +56,17 @@ func main() {
 	}))
 
 	v1Router := chi.NewRouter()
+
 	v1Router.Get("/healthz", handlerReadiness)
 	v1Router.Get("/err", handlerErr)
+
 	v1Router.Post("/users", apiCfg.handlerCreateUser)
 	v1Router.Get("/users", apiCfg.middlewareAuth(apiCfg.handlerGetUser))
 
+	v1Router.Post("/feeds", apiCfg.middlewareAuth(apiCfg.handlerCreateFeed))
 	v1Router.Get("/feeds", apiCfg.handlerGetFeeds)
+
+	v1Router.Get("/posts", apiCfg.middlewareAuth(apiCfg.handlerGetPostsForUser))
 
 	v1Router.Post("/feed_follows", apiCfg.middlewareAuth(apiCfg.handlerCreateFeedFollow))
 	v1Router.Get("/feed_follows", apiCfg.middlewareAuth(apiCfg.handlerGetFeedFollows))
@@ -81,7 +79,7 @@ func main() {
 		Addr:    ":" + portString,
 	}
 
-	log.Printf("Server starting on port %v...", portString)
+	log.Printf("server starting on port %v...", portString)
 	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
